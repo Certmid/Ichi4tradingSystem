@@ -1,5 +1,98 @@
-/*This is was made out of hobby to beat the 'Negative Sum Game' in the financial market
-  Do your own research
-  The basics of this system is to ensure participation in a market trend
-  Credit to Ichimoku indicator which this was built around and moving avaerages
-*/
+//@version=4
+//This is was made out of hobby to beat the 'Negative Sum Game' in the financial market
+//Do your own research
+//The basics of this system is to ensure participation in a market trend
+//Credit to Ichimoku indicator which this was built around and moving averages
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Certmid
+
+study(title="ICHIDEM", shorttitle="icd", overlay=true, precision=0, format=format.price, resolution="")
+
+source = close
+length = input(defval=40, minval=1, title ="MA - Simple") //40 is median that aligns with relative strength
+len = input(defval=2, minval=1, title="MA - Exponantial")
+lenema = input(defval=20, minval=1, title="MA 18")
+multt = input(defval=2.0, minval=0.001, maxval=50)
+emal=ema(source, lenema)
+basis = sma(source, length)
+
+//Double exponential moving average, this is used as a confirmation for trend
+Demalength = input(22, minval=1)
+Demasrc = input(close, title="DemaSource")
+e1 = ema(Demasrc, Demalength)
+e2 = ema(e1, Demalength)
+dema = 2 * e1 - e2
+
+//Ichitrend
+conversionPeriods = input(8, minval=1, title="Conversion Line Periods")
+basePeriods = input(18, minval=1, title="Base Line Periods")
+laggingSpan2Periods = input(50, minval=1, title="Lagging Span 2 Periods")
+displacement = input(13, minval=1, title="Displacement")
+
+donchian(len) =>
+    avg(lowest(len), highest(len))
+
+conversionLine = donchian(conversionPeriods)
+baseLine = donchian(basePeriods)
+leadLine1 = avg(conversionLine, baseLine)
+leadLine2 = donchian(laggingSpan2Periods)
+
+buy = ( close > baseLine  and close > basis ) and (dema > basis)
+
+sell = close < baseLine and close < basis
+
+buybuy = buy and buy != buy[1]
+entry= (( close > baseLine  and close > basis ) and (dema > basis) and close> leadLine2[13])
+buynotconfirm = (buy !=buy[1] and buy != sell[1] and buy != sell[1])
+buyentry= (entry !=entry[1] and entry != sell[1] and entry !=sell[1] and close >high[1]) 
+plotshape(buybuy,color=#0dff04,style=shape.arrowup, title="buy", text = "",textcolor=color.blue, location=location.belowbar, size = size.tiny)
+plotshape(buynotconfirm,color=#0dff04, style=shape.arrowup, title="buyichi", text="", textcolor=color.black,location=location.belowbar   ,size = size.tiny)
+plotshape(buyentry,color=#0dff04, style=shape.arrowup, title="entry", text="", textcolor=color.black,location=location.belowbar   ,size = size.tiny)
+barcolor(buynotconfirm? #08ff1a: na)
+barcolor(buyentry? #2962ff: na)
+
+
+sellsell = sell != sell[1] and sell !=buy[1]
+sellentry = crossunder(close, baseLine) and sell
+plotshape(sellsell, color=#f20000,title="sell",style=shape.arrowdown, text="",location=location.abovebar,size = size.tiny )
+plotshape(sellentry, color=#f20000,title="sellichi",style=shape.triangledown, text="", textcolor=color.red,location=location.abovebar,size = size.tiny  )
+barcolor(sellentry? #f23645: na)
+barcolor(sellsell? #f900ff: na)
+
+alertcondition(buynotconfirm or buyentry or sellentry or sellsell, title="ALERT FOR BUY OR SELL", message="TIME TO GET IN OR OUT OF A POSITION")
+
+lengthj = input(40, minval=1, title="EMA Length")
+lengtj = input(1, minval=1, title="EMA Length")
+
+//oversold and overbought
+atrlen = input(40, minval=1, title="ATR Length")
+mult = input(3)
+usrob = input(80, minval=50, title="Overbought")
+usros = input(30, minval=10, title="Oversold")
+myrsi = rsi(close, 14)
+maj = ema(source, lengthj)
+ema = ema(source, lengtj)
+rangema = ema(tr, atrlen)
+upperj = maj + rangema * mult
+lowerj = maj - rangema * mult
+mycond = myrsi > usrob and close > upperj
+mycond2 = myrsi < usros and close < lowerj
+barcolor(mycond ? color.blue : na)
+barcolor(mycond2 ? #ee3a78 : na)
+mycondd = crossunder(myrsi,usrob)
+mycondd2 = crossover(myrsi,usros)
+barcolor(mycondd2 ? color.white: na)
+barcolor(mycondd2 ? color.purple: na)
+plotshape(mycondd, title="selloverbought", style = shape.cross, location = location.abovebar, color = color.red , text="",size = size.tiny )
+plotshape(mycondd2,  title="buyoversold",style=shape.triangleup, location=location.belowbar, color=color.green,text="", size=size.tiny)
+
+
+// Bar color conditions for visibility
+Uponly=  close > dema and conversionLine > baseLine and leadLine1 > leadLine2  //momemtum is very strong
+barcolor(Uponly? color.green: na, title="uponly")
+
+Downtrend = close < leadLine2
+barcolor(Downtrend? color.yellow: na, title="Downtrend")
+
+Uptrend = close > leadLine2
+barcolor(Uptrend? color.lime: na, title="Uptrend")
